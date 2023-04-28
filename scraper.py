@@ -1,9 +1,19 @@
 import re
 from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+
+
+def filter_fragment(url):
+    idx = url.find('#')
+    if idx == -1:
+        return url
+    return url[: idx]
+
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
+
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -15,17 +25,41 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+    hyperlinks = []
+    if resp.status != 200:
+        return []
+    else:
+        content = resp.raw_response.content
+        allLinks = BeautifulSoup(content, "lxml").findAll('a')
+        for lk in allLinks:
+            u = lk.get('href')
+            if u is not None:
+                lk = lk.get('href').strip()
+            else:
+                continue
+            if lk.startswith("http") or lk.startswith("https"):
+                hyperlinks.append(lk)
+        return hyperlinks
+
+
+def checkValidUrls(hostName):
+    validUrls = ['\\.ics\\.uci\\.edu/', '\\.cs\\.uci\\.edu', '\\.informatics\\.uci\\.edu/', '\\.stat\\.uci\\.edu/']
+    for url in validUrls:
+        if re.match('.*' + url, hostName):
+            return True
+    return False
+
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
-        return not re.match(
+        return checkValidUrls(parsed.hostname) and (not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -33,8 +67,8 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()))
 
     except TypeError:
-        print ("TypeError for ", parsed)
+        print("TypeError for ", parsed)
         raise
