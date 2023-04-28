@@ -12,6 +12,27 @@ def filter_fragment(url):
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
+    linkFiles = open("links.txt", "a")
+    link_with_size = open("links_size.txt", "a")
+    linkWithOutFragments = open("link_without_fragment.txt", "a")
+    allContents = open("contents.txt", "a")
+    if resp.raw_response is None:
+        return []
+    content = resp.raw_response.content
+    fileContent = BeautifulSoup(content, "html.parser").get_text()
+    fileContent = fileContent.replace("\n", " ")
+    allContents.write(fileContent + "\n")
+    size = len(fileContent.split())
+    link_with_size.write("{} {}\n".format(url, size))
+    for link in links:
+        if is_valid(link):
+            linkFiles.write(str(link) + "\n")
+            linkWithOutFragments.write(str(filter_fragment(link)) + "\n")
+
+    linkFiles.close()
+    link_with_size.close()
+    linkWithOutFragments.close()
+    allContents.close()
     return [link for link in links if is_valid(link)]
 
 
@@ -58,6 +79,8 @@ def is_valid(url):
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
+            return False
+        if parsed.hostname is None:
             return False
         return checkValidUrls(parsed.hostname) and (not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
